@@ -1,0 +1,15 @@
+{
+  "name": "retryx",
+  "version": "0.1.0",
+  "description": "Retry an async function with exponential backoff. Zero dependencies.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": ["retry", "backoff", "async"],
+  "license": "MIT",
+  "author": "francescagiuseppecominetti",
+  "engines": {
+    "node": ">=14"
+  }
+}
