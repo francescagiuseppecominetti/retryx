@@ -5,8 +5,28 @@
  * Zero dependencies.
  */
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function abortError() {
+  const err = new Error('the operation was aborted');
+  err.name = 'AbortError';
+  return err;
+}
+
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal && signal.aborted) {
+      reject(abortError());
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    function onAbort() {
+      clearTimeout(timer);
+      reject(abortError());
+    }
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 const DEFAULTS = {
@@ -15,6 +35,7 @@ const DEFAULTS = {
   maxDelay: 30000,
   factor: 2,
   jitter: false,
+  signal: null,
   shouldRetry: () => true,
   onRetry: () => {},
 };
@@ -34,6 +55,9 @@ async function retry(fn, options) {
   const opts = Object.assign({}, DEFAULTS, options);
   let attempt = 0;
   for (;;) {
+    if (opts.signal && opts.signal.aborted) {
+      throw abortError();
+    }
     try {
       return await fn(attempt);
     } catch (err) {
@@ -42,7 +66,7 @@ async function retry(fn, options) {
       }
       const delay = computeDelay(attempt, opts);
       opts.onRetry(err, attempt, delay);
-      await sleep(delay);
+      await sleep(delay, opts.signal);
       attempt += 1;
     }
   }
