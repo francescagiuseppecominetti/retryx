@@ -72,4 +72,11 @@ async function retry(fn, options) {
   }
 }
 
-module.exports = { retry, computeDelay };
+/** Wrap an async function so every call is retried with the same options. */
+function decorate(fn, options) {
+  return function decorated(...args) {
+    return retry(() => fn(...args), options);
+  };
+}
+
+module.exports = { retry, computeDelay, decorate };
