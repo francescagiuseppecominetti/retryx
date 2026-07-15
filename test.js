@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('assert');
-const { retry, computeDelay } = require('./index.js');
+const { retry, computeDelay, decorate } = require('./index.js');
 
 (async () => {
   // resolves on first try, no retry
@@ -48,6 +48,22 @@ const { retry, computeDelay } = require('./index.js');
     const d = computeDelay(2, { ...base, jitter: true });
     assert.ok(d >= 0 && d <= capped);
   }
+
+  // decorate wraps a function into a retrying one
+  let dn = 0;
+  const flaky = async (x) => { dn += 1; if (dn < 2) throw new Error('e'); return x * 2; };
+  const safe = decorate(flaky, { retries: 3, minDelay: 1 });
+  assert.strictEqual(await safe(21), 42);
+  assert.strictEqual(dn, 2);
+
+  // an aborted signal stops the retry loop
+  const ac = new AbortController();
+  let an = 0;
+  const pending = retry(async () => { an += 1; throw new Error('nope'); }, {
+    retries: 10, minDelay: 30, signal: ac.signal,
+  });
+  setTimeout(() => ac.abort(), 5);
+  await assert.rejects(pending, (e) => e.name === 'AbortError');
 
   console.log('ok - all retryx tests passed');
 })().catch((err) => { console.error(err); process.exit(1); });
